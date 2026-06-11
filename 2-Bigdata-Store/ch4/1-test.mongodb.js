@@ -67,3 +67,63 @@ use("indexDB");
 db.products.find({ category: "Electronics" }).explain("executionStats");
 
 // 예시 비교: 인덱스 없음 totalDocsExamined 100000 / 적용 후 크게 감소
+
+use("indexDB");
+db.locations.insertMany([
+  // 37.563689, 126.987540
+  // 경북궁 : 37.582837, 126.976890
+  { name: "Seoul Tower", coordinates: [126.9784, 37.5665] }, // [경도, 위도] 순서 주의
+  { name: "Busan Tower", coordinates: [129.0327, 35.1019] },
+  { name: "Namsan Park", coordinates: [126.9921, 37.5512] },
+  { name: "경북궁", coordinates: [126.97689, 37.582837] },
+]);
+use("indexDB");
+db.locations.createIndex({ coordinates: "2dsphere" });
+
+// 원형 검색: 서울 좌표 중심 반경 안
+use("indexDB");
+db.locations.find({
+  coordinates: { $geoWithin: { $center: [[126.9784, 37.5665], 10] } },
+});
+
+// 사각형 검색
+use("indexDB");
+db.locations.find({
+  coordinates: {
+    $geoWithin: {
+      $box: [
+        [126.9, 37.5],
+        [127.1, 37.7],
+      ],
+    },
+  },
+});
+
+// 구형 거리 검색: 반경 10km(미터) 이내
+// 서울 N 타워 :  37.563689, 126.987540
+use("indexDB");
+db.locations.find({
+  coordinates: {
+    $nearSphere: {
+      $geometry: { type: "Point", coordinates: [126.98754, 37.563689] },
+      $maxDistance: 10000,
+    },
+  },
+});
+
+use("indexDB");
+db.logs.insertMany([
+  { message: "User logged in", createdAt: new Date() },
+  { message: "Password changed", createdAt: new Date() },
+]);
+
+// createdAt 기준 180초 후 자동 삭제
+use("indexDB");
+db.logs.createIndex({ createdAt: 1 }, { expireAfterSeconds: 180 });
+
+// 자주 쓰는 기간
+use("indexDB");
+db.tempData.createIndex({ createdAt: 1 }, { expireAfterSeconds: 86400 }); // 24시간
+use("indexDB");
+db.activityLogs.createIndex({ createdAt: 1 }, { expireAfterSeconds: 604800 }); // 7일
+// ⚠ createdAt은 반드시 Date 타입(new Date())이어야 함. 문자열은 TTL 작동 안 함
